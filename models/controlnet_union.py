@@ -28,20 +28,22 @@ class LayerNorm(nn.LayerNorm):
     return x.to(dtype)
   
 class AttentionBlock(nn.Module):
-  def __init__(self, head_dim: int, num_heads: int) -> None:
+  def __init__(self, embed_dim: int, num_heads: int, attn_mask: Optional[torch.Tensor]= None):
     super().__init__()
-    self.attn = nn.MultiheadAttention(embed_dim=head_dim, num_heads=num_heads)
-    self.ln_1 = LayerNorm(head_dim)
+    self.attn = nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads)
+    self.ln_1 = LayerNorm(embed_dim)
     self.mlp = nn.Sequential(
-      OrderedDict(["c_fc", nn.Linear(head_dim, 4 * head_dim), 
-                   ("gelu", QuickGELU()), 
-                   ("c_proj", nn.Linear(4 * head_dim, head_dim))]))
-    self.ln_2 = LayerNorm(head_dim)
-  
+      OrderedDict([("c_fc", nn.Linear(embed_dim, embed_dim * 4)), ("gelu", QuickGELU()),
+                    ("c_proj", nn.Linear(embed_dim * 4, embed_dim))]))
+    self.ln_2 = LayerNorm(embed_dim)
+    self.attn_mask = attn_mask
+
   def forward(self, x: torch.Tensor) -> torch.Tensor:
     residual = x
+    self.attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) if self.attn_mask is not None else None
+
     x = self.ln_1(x)
-    x = self.attn(x, x, x, need_weights=False)[0]
+    x = self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
     x = x + residual
 
     residual = x
