@@ -15,7 +15,7 @@ from diffusers.loaders.ip_adapter import IPAdapterMixin
 from diffusers.models.autoencoders.autoencoder_kl import AutoencoderKL
 from diffusers.models.controlnets.controlnet import ControlNetModel
 from diffusers.models.unets.unet_2d_condition import UNet2DConditionModel
-from models import ControlNetModel_Union
+from models import ControlNetUnion
 from diffusers.models.attention_processor import AttnProcessor2_0, LoRAAttnProcessor2_0, LoRAXFormersAttnProcessor, XFormersAttnProcessor
 from diffusers.models.lora import adjust_lora_scale_text_encoder
 from diffusers.schedulers.scheduling_utils import KarrasDiffusionSchedulers
@@ -603,7 +603,7 @@ class StableDiffusionXLControlNetUnionPipeline(
                 1.0 - float(i / len(timesteps) < s or (i + 1) / len(timesteps) > e)
                 for s, e in zip(controlnet_guidance_start, controlnet_guidance_end)
             ]
-            controlnet_keep.append(keeps[0] if isinstance(controlnet, ControlNetModel_Union) else keeps)
+            controlnet_keep.append(keeps[0] if isinstance(controlnet, ControlNetUnion) else keeps)
 
         # 7.2 Prepare added time ids & embeddings
         add_text_embeds = pooled_prompt_embeds

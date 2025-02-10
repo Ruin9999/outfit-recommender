@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image
 from torch.nn import functional as F
 from typing import List, Union, Tuple, Optional, Any
-from models import ControlNetModel_Union
+from models import ControlNetUnion
 
 
 # Copied from diffusers.pipelines.controlnet.pipeline_controlnet.StableDiffusionControlNetPipeline.check_image
@@ -102,13 +102,13 @@ def check_stable_diffusion_controlnet_inputs(
         raise ValueError(f"`neg_prompt_embeds` has to be provided if `pooled_neg_prompt_embeds` is provided but is None")
 
     is_compiled = hasattr(F, "scaled_dot_product_attention") and isinstance(pipeline.controlnet, torch._dynamo.eval_frame.OptimizedModule)
-    if isinstance(pipeline.controlnet, ControlNetModel_Union) or is_compiled and isinstance(pipeline.controlnet._orig_mod, ControlNetModel_Union):
+    if isinstance(pipeline.controlnet, ControlNetUnion) or is_compiled and isinstance(pipeline.controlnet._orig_mod, ControlNetUnion):
         if image_list is not None:
             for image in image_list:
                 if image:
                     check_image(image, prompt, prompt_embeds)
 
-    if isinstance(pipeline.controlnet, ControlNetModel_Union) or is_compiled and isinstance(pipeline.controlnet._orig_mod, ControlNetModel_Union):
+    if isinstance(pipeline.controlnet, ControlNetUnion) or is_compiled and isinstance(pipeline.controlnet._orig_mod, ControlNetUnion):
             if not isinstance(controlnet_conditioning_scale, float):
                 raise ValueError(f"`controlnet_conditioning_scale` has to be a float but is {controlnet_conditioning_scale} of type {type(controlnet_conditioning_scale)}")
 

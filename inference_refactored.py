@@ -4,7 +4,7 @@ import random
 import numpy as np
 from PIL import Image
 from controlnet_aux import OpenposeDetector
-from models import ControlNetModel_Union, BaseUNet, AutoencoderKL
+from models import ControlNetUnion, BaseUNet, AutoencoderKL
 from utils import save_images
 
 from diffusers.schedulers.scheduling_euler_ancestral_discrete import EulerAncestralDiscreteScheduler
@@ -31,7 +31,7 @@ base_unet = BaseUNet.from_pretrained("SG161222/RealVisXL_V4.0", subfolder="unet"
 vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
 # refiner_unet = UNet2DConditionModel.from_pretrained("stabilityai/stable-diffusion-xl-refiner-1.0", subfolder="unet", torch_dtype=torch.float16, variant="fp16", use_safetensors=True)
 
-controlnet = ControlNetModel_Union.from_pretrained("xinsir/controlnet-union-sdxl-1.0", torch_dtype=torch.float16, use_safetensors=True)
+controlnet = ControlNetUnion.from_pretrained("xinsir/controlnet-union-sdxl-1.0", torch_dtype=torch.float16, use_safetensors=True)
 
 # PRE-PROCESS CONTROLNET IMAGE
 pose_processor = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')

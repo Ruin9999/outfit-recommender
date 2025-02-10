@@ -59,7 +59,7 @@ class ControlNetOutput(BaseOutput):
   mid_block_res_sample: torch.Tensor
 
 class ControlNetConditioningEmbedding(nn.Module):
-  def __init__(self, in_channels: int, hidden_channels: int, out_channels: int) :
+  def __init__(self, in_channels: int, hidden_channels: List[int], out_channels: int) :
     super().__init__()
     self.conv_in = nn.Conv2d(in_channels, hidden_channels[0], kernel_size=3, padding=1)
     self.blocks = nn.ModuleList([])
@@ -81,7 +81,7 @@ class ControlNetConditioningEmbedding(nn.Module):
     x = self.conv_out(x) # (batch_size, 256, height // 8, width // 8) -> (batch_size, 320, height // 8, width // 8)
     return x
   
-class ControlNetUnion(nn.Module):
+class ControlNetUnion(ModelMixin, FromOriginalModelMixin, ConfigMixin):
   def __init__(self) -> None:
     super().__init__()
     self.conv_in = nn.Conv2d(4, 320, kernel_size=3, padding=1)
