@@ -115,34 +115,34 @@ class ControlNetUnion(nn.Module):
 
     # Down blocks
     self.down_blocks.append(DownsampleBlock(
-        in_channels=320,
-        out_channels=320,
-        time_embedding_channels=320 * 4,
-        num_residual_layers=2,
-        eps=1e-05,
+      in_channels=320,
+      out_channels=320,
+      time_embedding_channels=320 * 4,
+      num_residual_layers=2,
+      eps=1e-05,
     ))
 
     self.down_blocks.append(DownsampleCrossAttentionBlock(
-        in_channels=320,
-        out_channels=640,
-        time_embedding_channels=320 * 4,
-        num_attention_heads=10,
-        num_layers=2,
-        eps=1e-05,
-        num_transformer_layers=2,
-        cross_attention_dim=2048,
+      in_channels=320,
+      out_channels=640,
+      time_embedding_channels=320 * 4,
+      num_attention_heads=10,
+      num_layers=2,
+      eps=1e-05,
+      num_transformer_layers=2,
+      cross_attention_dim=2048,
     ))
 
     self.down_blocks.append(DownsampleCrossAttentionBlock(
-        in_channels=640,
-        out_channels=1280,
-        time_embedding_channels=320 * 4,
-        num_attention_heads=20,
-        num_layers=2,
-        eps=1e-05,
-        num_transformer_layers=10,
-        cross_attention_dim=2048,
-        downsample=False,
+      in_channels=640,
+      out_channels=1280,
+      time_embedding_channels=320 * 4,
+      num_attention_heads=20,
+      num_layers=2,
+      eps=1e-05,
+      num_transformer_layers=10,
+      cross_attention_dim=2048,
+      downsample=False,
     ))
 
     # For each down block, we have 3 controlnet layers except for the last block
@@ -180,17 +180,17 @@ class ControlNetUnion(nn.Module):
 
     # Mid Block
     self.mid_block = UNetMidBlock2DCrossAttn(
-        in_channels=1280,
-        temb_channels=320 * 4,
-        transformer_layers_per_block=10,
-        resnet_eps=1e-05,
-        resnet_time_scale_shift="default",
-        resnet_act_fn="silu",
-        resnet_groups=32,
-        output_scale_factor=1,
-        cross_attention_dim=2048,
-        num_attention_heads=20,
-        use_linear_projection=True,
+      in_channels=1280,
+      temb_channels=320 * 4,
+      transformer_layers_per_block=10,
+      resnet_eps=1e-05,
+      resnet_time_scale_shift="default",
+      resnet_act_fn="silu",
+      resnet_groups=32,
+      output_scale_factor=1,
+      cross_attention_dim=2048,
+      num_attention_heads=20,
+      use_linear_projection=True,
     )
 
     controlnet_block = nn.Conv2d(1280, 1280, kernel_size=1)
