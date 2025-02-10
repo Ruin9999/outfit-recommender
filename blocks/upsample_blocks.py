@@ -77,8 +77,8 @@ class UpsampleCrossAttentionBlock(nn.Module):
     self,
     in_channels: int,
     out_channels: int,
-    prev_channels: int,
-    time_embedding_channels: int,
+    prev_channels: Optional[int] = None,
+    time_embedding_channels: Optional[int] = None,
     num_attention_heads: int = 1,
     num_transformer_layers: int = 1,
     num_layers: int = 1,
@@ -97,7 +97,7 @@ class UpsampleCrossAttentionBlock(nn.Module):
       res_in_channels = prev_channels if i == 0 else out_channels
 
       self.resnets.append(ResidualBlock(res_skip_channels + res_in_channels, out_channels, time_embedding_channels, eps=eps)) #type: ignore
-      self.attention.append(Transformer2DModel(
+      self.attentions.append(Transformer2DModel(
         num_attention_heads,
         out_channels // num_attention_heads,
         in_channels=out_channels,
@@ -110,8 +110,8 @@ class UpsampleCrossAttentionBlock(nn.Module):
         attention_type="default",
       ))
 
-      if upsample:
-        self.upsamplers.append(Upsample(out_channels, out_channels))
+    if upsample:
+      self.upsamplers.append(Upsample(out_channels, out_channels))
 
   def forward(
     self,
@@ -127,7 +127,7 @@ class UpsampleCrossAttentionBlock(nn.Module):
       x = torch.cat([x, res_hidden_states], dim=1)
 
       x = resnet(x, time_embedding)
-      x = attention(x, encoder_hidden_states=encoder_hidden_states, cross_attention_kwargs=cross_attention_kwargs)
+      x = attention(x, encoder_hidden_states=encoder_hidden_states, cross_attention_kwargs=cross_attention_kwargs)[0]
 
     for layer in self.upsamplers:
       x = layer(x)

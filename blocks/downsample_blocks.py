@@ -20,7 +20,7 @@ class DownsampleBlock(nn.Module):
     self,
     in_channels: int,
     out_channels: int,
-    time_embedding_channels: int,
+    time_embedding_channels: Optional[int] = None,
     num_residual_layers: int = 2,
     downsample: bool = True,
     eps: float = 1e-6,
@@ -35,21 +35,22 @@ class DownsampleBlock(nn.Module):
     if downsample:
       self.downsamplers.append(Downsample(out_channels, out_channels))
 
-  def forward(self, x: torch.Tensor, time_embedding: Optional[torch.Tensor]) -> Tuple[torch.Tensor, Tuple[torch.Tensor, ...]]:
-    residuals = []
-    for resnet in self.resnets:
-      x = resnet(x, time_embedding)
-      residuals.append(x)
-    for downsample in self.downsamplers:
-      x = downsample(x)
-    return x, tuple(residuals)
+  def forward(self, x: torch.Tensor, time_embedding: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, Tuple[torch.Tensor, ...]]:
+      output_states = []
+      for resnet in self.resnets:
+        x = resnet(x, time_embedding)
+        output_states.append(x)
+      for downsample in self.downsamplers:
+        x = downsample(x)
+        output_states.append(x)
+      return x, tuple(output_states)
   
 class DownsampleCrossAttentionBlock(nn.Module):
   def __init__(
     self,
     in_channels: int,
     out_channels: int,
-    time_embedding_channels: int,
+    time_embedding_channels: Optional[int] = None,
     num_attention_heads: int = 1,
     num_transformer_layers: int = 1,
     num_layers: int = 2,
