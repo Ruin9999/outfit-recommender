@@ -11,7 +11,7 @@ from diffusers.configuration_utils import ConfigMixin
 from diffusers.models.modeling_utils import ModelMixin
 from diffusers.loaders.single_file_model import FromOriginalModelMixin
 from diffusers.models.unets.unet_2d_blocks import UNetMidBlock2DCrossAttn
-from blocks import DownsampleBlock, DownsampleCrossAttentionBlock, Timesteps, TimestepEmbedding
+from blocks import DownsampleBlock, DownsampleCrossAttentionBlock
 
 def zero_module(module: nn.Module) -> nn.Module:
     for param in module.parameters():
@@ -54,68 +54,68 @@ class AttentionBlock(nn.Module):
 
         return x
 
-# class Timesteps(nn.Module):
-#     def __init__(self, num_channels: int, flip_sin_to_cos: bool, downscale_freq_shift: float, scale: int = 1):
-#         super().__init__()
-#         self.num_channels = num_channels
-#         self.flip_sin_to_cos = flip_sin_to_cos
-#         self.downscale_freq_shift = downscale_freq_shift
-#         self.scale = scale
+class Timesteps(nn.Module):
+    def __init__(self, num_channels: int, flip_sin_to_cos: bool, downscale_freq_shift: float, scale: int = 1):
+        super().__init__()
+        self.num_channels = num_channels
+        self.flip_sin_to_cos = flip_sin_to_cos
+        self.downscale_freq_shift = downscale_freq_shift
+        self.scale = scale
 
-#     # From DDPM Paper 
-#     def get_timestep_embedding(
-#         self,
-#         timesteps: torch.Tensor,
-#         embedding_dim: int,
-#         flip_sin_to_cos: bool = False,
-#         downscale_freq_shift: float = 1,
-#         scale: float = 1,
-#         max_period: int = 10000,
-#     ):
-#         half_dim = embedding_dim // 2
-#         exponent = -math.log(max_period) * torch.arange(0, half_dim, dtype=torch.float32, device=timesteps.device)
-#         exponent = exponent / (half_dim - downscale_freq_shift)
+    # From DDPM Paper 
+    def get_timestep_embedding(
+        self,
+        timesteps: torch.Tensor,
+        embedding_dim: int,
+        flip_sin_to_cos: bool = False,
+        downscale_freq_shift: float = 1,
+        scale: float = 1,
+        max_period: int = 10000,
+    ):
+        half_dim = embedding_dim // 2
+        exponent = -math.log(max_period) * torch.arange(0, half_dim, dtype=torch.float32, device=timesteps.device)
+        exponent = exponent / (half_dim - downscale_freq_shift)
 
-#         # Broadcast the timesteps to the embedding dimension
-#         embeddings = torch.exp(exponent)
-#         embeddings = timesteps[:, None] * embeddings[None, :]
-#         embeddings = scale * embeddings
+        # Broadcast the timesteps to the embedding dimension
+        embeddings = torch.exp(exponent)
+        embeddings = timesteps[:, None] * embeddings[None, :]
+        embeddings = scale * embeddings
 
-#         if flip_sin_to_cos:
-#             embeddings = torch.cat([torch.cos(embeddings), torch.sin(embeddings)], dim=-1)
-#         else:
-#             embeddings = torch.cat([torch.sin(embeddings), torch.cos(embeddings)], dim=-1)
+        if flip_sin_to_cos:
+            embeddings = torch.cat([torch.cos(embeddings), torch.sin(embeddings)], dim=-1)
+        else:
+            embeddings = torch.cat([torch.sin(embeddings), torch.cos(embeddings)], dim=-1)
 
-#         # Zero padding incase we have a odd number of dimensions
-#         if embedding_dim % 2 == 1:
-#             embeddings = F.pad(embeddings, (0, 1, 0, 0))
+        # Zero padding incase we have a odd number of dimensions
+        if embedding_dim % 2 == 1:
+            embeddings = F.pad(embeddings, (0, 1, 0, 0))
         
-#         return embeddings
+        return embeddings
 
-#     def forward(self, timesteps: torch.Tensor) -> torch.Tensor:
-#         timestep_embeddings = self.get_timestep_embedding(
-#             timesteps=timesteps,
-#             embedding_dim=self.num_channels,
-#             flip_sin_to_cos=self.flip_sin_to_cos,
-#             downscale_freq_shift=self.downscale_freq_shift,
-#             scale=self.scale
-#         )
+    def forward(self, timesteps: torch.Tensor) -> torch.Tensor:
+        timestep_embeddings = self.get_timestep_embedding(
+            timesteps=timesteps,
+            embedding_dim=self.num_channels,
+            flip_sin_to_cos=self.flip_sin_to_cos,
+            downscale_freq_shift=self.downscale_freq_shift,
+            scale=self.scale
+        )
 
-#         return timestep_embeddings
+        return timestep_embeddings
 
-# class TimestepEmbedding(nn.Module):
-#     def __init__(self, in_channels: int, embedding_dim: int):
-#         super().__init__()
-#         self.linear_1 = nn.Linear(in_channels, embedding_dim)
-#         self.act = nn.SiLU()
-#         self.linear_2 = nn.Linear(embedding_dim, embedding_dim)
+class TimestepEmbedding(nn.Module):
+    def __init__(self, in_channels: int, embedding_dim: int):
+        super().__init__()
+        self.linear_1 = nn.Linear(in_channels, embedding_dim)
+        self.act = nn.SiLU()
+        self.linear_2 = nn.Linear(embedding_dim, embedding_dim)
 
-#     def forward(self, timestep: torch.Tensor, condition=None) -> torch.Tensor:
-#         timestep = self.linear_1(timestep)
-#         timestep = self.act(timestep)
-#         timestep = self.linear_2(timestep)
+    def forward(self, timestep: torch.Tensor, condition=None) -> torch.Tensor:
+        timestep = self.linear_1(timestep)
+        timestep = self.act(timestep)
+        timestep = self.linear_2(timestep)
 
-#         return timestep
+        return timestep
 
 
 @dataclass
@@ -173,10 +173,10 @@ class ControlNetModel_Union(ModelMixin, FromOriginalModelMixin, ConfigMixin):
         self.conv_in = nn.Conv2d(4, 320, kernel_size=3, padding=1)
         
         # Time embedding
-        self.time_proj = Timesteps(320, frequency_shift=0)
+        self.time_proj = Timesteps(320, flip_sin_to_cos=True, downscale_freq_shift=0)
         self.time_embedding = TimestepEmbedding(320, 320 * 4)
 
-        self.add_time_proj = Timesteps(256, frequency_shift=0)
+        self.add_time_proj = Timesteps(256, flip_sin_to_cos=True, downscale_freq_shift=0)
         self.add_embedding = TimestepEmbedding(2816, 320 * 4)
         
         # Control net conditioning embedding
@@ -201,7 +201,7 @@ class ControlNetModel_Union(ModelMixin, FromOriginalModelMixin, ConfigMixin):
         # Control Embedder to distinguish different control conditions
         # A simple but effective module, consists of an embedding layer and a linear layer,
         # to inject control info to time embedding.
-        self.control_type_proj = Timesteps(256, frequency_shift=0)
+        self.control_type_proj = Timesteps(256, flip_sin_to_cos=True, downscale_freq_shift=0)
         self.control_add_embedding = TimestepEmbedding(256 * num_control_type, 320 * 4)
 
         self.down_blocks = nn.ModuleList([])

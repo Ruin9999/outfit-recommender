@@ -17,35 +17,33 @@ class Downsample(nn.Module):
     return x
 
 class DownsampleBlock(nn.Module):
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        time_embedding_channels: Optional[int] = None,
-        num_residual_layers: int = 2,   
-        downsample: bool = True,
-        eps: float = 1e-6,
-    ):
-        super().__init__()
-        self.resnets = nn.ModuleList([])
-        self.downsamplers = nn.ModuleList([])
+  def __init__(
+    self,
+    in_channels: int,
+    out_channels: int,
+    time_embedding_channels: Optional[int] = None,
+    num_residual_layers: int = 2,
+    downsample: bool = True,
+    eps: float = 1e-6,
+  ) -> None:
+    super().__init__()
+    self.resnets = nn.ModuleList([])
+    self.downsamplers = nn.ModuleList([])
 
-        for _ in range(num_residual_layers):
-            self.resnets.append(ResidualBlock(in_channels, out_channels, time_embedding_channels, eps=eps))
-            in_channels = out_channels
+    for _ in range(num_residual_layers):
+      self.resnets.append(ResidualBlock(in_channels, out_channels, time_embedding_channels, eps))
+      in_channels = out_channels
+    if downsample:
+      self.downsamplers.append(Downsample(out_channels, out_channels))
 
-        if downsample:
-            self.downsamplers.append(Downsample(out_channels, out_channels))
-
-    def forward(self, x: torch.Tensor, time_embedding: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, Tuple[torch.Tensor, ...]]:
-        output_states = ()
-        for layer in self.resnets:
-            x = layer(x, time_embedding)
-            output_states += (x, )
-        for layer in self.downsamplers:
-            x = layer(x)
-            output_states += (x, )
-        return x, output_states
+  def forward(self, x: torch.Tensor, time_embedding: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, Tuple[torch.Tensor, ...]]:
+    residuals = []
+    for resnet in self.resnets:
+      x = resnet(x, time_embedding)
+      residuals.append(x)
+    for downsample in self.downsamplers:
+      x = downsample(x)
+    return x, tuple(residuals)
 
 class DownsampleCrossAttentionBlock(nn.Module):
     def __init__(
