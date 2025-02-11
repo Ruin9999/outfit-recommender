@@ -35,9 +35,9 @@ import litserve as ls
 import PIL.Image as Image
 
 from controlnet_aux import OpenposeDetector
-from inference import StableDiffusionXLControlNetUnionPipeline
 from models import ControlNetUnion, BaseUNet, AutoencoderKL
 from transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPTokenizer
+from stable_diffusion_controlnet_pipeline import StableDiffusionXLControlNetUnionPipeline
 from diffusers.schedulers.scheduling_euler_ancestral_discrete import EulerAncestralDiscreteScheduler
 
 # DEFAULT VALUES
@@ -57,13 +57,13 @@ class StableDiffusionLitAPI(ls.LitAPI):
     self.controlnet = ControlNetUnion.from_pretrained("xinsir/controlnet-union-sdxl-1.0", torch_dtype=torch.float16, use_safetensors=True)
     self.pose_processor = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
     self.pipeline = StableDiffusionXLControlNetUnionPipeline(
-      vae=self.vae,
+      vae=self.vae, #type: ignore
       text_encoder=self.text_encoder,
       text_encoder_2=self.text_encoder_2,
       tokenizer=self.tokenizer,
       tokenizer_2=self.tokenizer_2,
-      unet=self.base_unet,
-      controlnet=self.controlnet,
+      unet=self.base_unet, #type: ignore
+      controlnet=self.controlnet, #type: ignore
       scheduler=self.scheduler,
     ).to(device) # Moving to CPU should cause some issues with fp16.
 
