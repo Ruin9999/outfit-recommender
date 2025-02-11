@@ -75,8 +75,9 @@ class StableDiffusionLitAPI(ls.LitAPI):
     neg_prompt = arguments.get("neg_prompt", NEG_PROMPT)
     num_inference_steps = arguments.get("num_inference_steps", 40)
     guidance_scale = arguments.get("guidance_scale", 8.0)
-    controlnet_image_url = arguments.get("controlnet_img_url", CONTROLNET_IMG_PATH)
+    controlnet_image_url = arguments.get("controlnet_image_url", CONTROLNET_IMG_PATH)
     seed = arguments.get("seed", random.randint(0, 2147483647))
+    # isDebugMode = arguments.get("debug", False)
 
     # Download controlnet image
     if controlnet_image_url.startswith("http"):
