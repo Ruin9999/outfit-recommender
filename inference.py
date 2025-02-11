@@ -10,7 +10,7 @@ from utils import save_images
 from diffusers.schedulers.scheduling_euler_ancestral_discrete import EulerAncestralDiscreteScheduler
 from transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPTokenizer
 
-from stable_diffusion_xl_controlet import StableDiffusionXLControlNetUnionPipeline
+from stable_diffusion_controlnet_pipeline import StableDiffusionXLControlNetUnionPipeline
 from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl_img2img import StableDiffusionXLImg2ImgPipeline
 
 # CONFIGURATION
