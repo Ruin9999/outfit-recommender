@@ -84,7 +84,7 @@ class StableDiffusionLitAPI(ls.LitAPI):
       if response.status_code != 200:
         raise ValueError(f"Failed to download image from {controlnet_image_url}")
       image_bytes = np.asarray(bytearray(response.content), dtype=np.uint8)
-      controlnet_image = cv2.imread(image_bytes, cv2.IMREAD_COLOR)
+      controlnet_image = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
     else:
       controlnet_image = cv2.imread(controlnet_image_url)
 
