@@ -15,6 +15,7 @@
 import requests
 
 response = requests.post("http://127.0.0.0:8000/predict", json={"input": {
-    "prompt" : "A man holding holding a beer standing on the side of the sidewalk."
+    "prompt" : "A man holding holding a beer standing on the side of the sidewalk.",
+    "controlnet_image_url": "https://avid-tapir-423.convex.cloud/api/storage/c765650a-0117-42c1-9d7d-ceac5fcd5a71"
 }})
 print(f"Status: {response.status_code}\nResponse:\n {response.text}")

@@ -77,25 +77,28 @@ class StableDiffusionLitAPI(ls.LitAPI):
     guidance_scale = arguments.get("guidance_scale", 8.0)
     controlnet_image_url = arguments.get("controlnet_image_url", CONTROLNET_IMG_PATH)
     seed = arguments.get("seed", random.randint(0, 2147483647))
-    # isDebugMode = arguments.get("debug", False)
+    log = arguments.get("log", False)
 
     # Download controlnet image
     if controlnet_image_url.startswith("http"):
       response = requests.get(controlnet_image_url)
-      if response.status_code != 200:
-        raise ValueError(f"Failed to download image from {controlnet_image_url}")
-      image_bytes = np.asarray(bytearray(response.content), dtype=np.uint8)
-      controlnet_image = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
+      response.raise_for_status()
+      # TODO: getting issue where downloaded image has size 85 instead of 86
+      image_array = np.frombuffer(response.content, dtype=np.uint8)
+      controlnet_image = cv2.imdecode(image_array, cv2.IMREAD_COLOR) # Getting an error saying that this image has a size of 85 instead of 86, but where the fuck is throwing that error? I dont know
+      if controlnet_image is None: raise ValueError("Invalid image")
     else:
-      controlnet_image = cv2.imread(controlnet_image_url)
+      controlnet_image = cv2.imread(controlnet_image_url, cv2.IMREAD_COLOR)
 
     # Pre-process controlnet image
     controlnet_image = self.pose_processor(controlnet_image, hand_and_face=False, output_type='cv2')
-    height, width, _ = controlnet_image.shape
+    height, width, _ = controlnet_image.shape #type: ignore
     ratio = np.sqrt(1024. * 1024. / (width * height))
     new_width, new_height = int(width * ratio), int(height * ratio)
-    controlnet_image = cv2.resize(controlnet_image, (new_width, new_height))
+    controlnet_image = cv2.resize(controlnet_image, (new_width, new_height)) #type: ignore
     controlnet_image = Image.fromarray(controlnet_image)
+
+    # TODO: If log, store controlnet_image
 
     # Run inference
     image = self.pipeline(
@@ -109,6 +112,8 @@ class StableDiffusionLitAPI(ls.LitAPI):
       union_control_type=torch.Tensor([1, 0, 0, 0, 0, 0]),
       guidance_scale=guidance_scale
     ).images[0]
+
+    # TODO: If log, store image
 
     # Send image back to client
     buffer = io.BytesIO()

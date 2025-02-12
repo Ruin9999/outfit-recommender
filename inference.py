@@ -1,6 +1,7 @@
 import cv2
 import torch
 import random
+import requests
 import numpy as np
 from PIL import Image
 from controlnet_aux import OpenposeDetector
@@ -16,7 +17,7 @@ from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl_img2im
 # CONFIGURATION
 PROMPT="Model in layered street style, standing against a vibrant graffiti wall, Vivid colors, Mirrorless, 28mm lens"
 NEG_PROMPT="out of frame, lowres, text, error, cropped, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, out of frame, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck, username, watermark, signature."
-CONTROLNET_IMG_PATH="test.jpg"
+CONTROLNET_IMG_PATH="controlnet_default.jpg"
 ACTIVE_DEVICE="cuda:0"
 IDLE_DEVICE="cpu"
 IMG_OUTPUT_PATH="/outputs"
@@ -33,9 +34,18 @@ vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype
 
 controlnet = ControlNetUnion.from_pretrained("xinsir/controlnet-union-sdxl-1.0", torch_dtype=torch.float16, use_safetensors=True)
 
+# Get pose from web
+# response = requests.get("https://avid-tapir-423.convex.cloud/api/storage/5834ca5a-324a-4425-97e2-acf8681a4e80")
+# image_array = np.frombuffer(response.content, np.uint8)
+# controlnet_img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+
+response = requests.get("https://previews.123rf.com/images/paylessimages/paylessimages1501/paylessimages150151239/40012949-office-lady.jpg")
+image_array = np.frombuffer(response.content, np.uint8)
+controlnet_img = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+
 # PRE-PROCESS CONTROLNET IMAGE
 pose_processor = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
-controlnet_img = cv2.imread(CONTROLNET_IMG_PATH)
+# controlnet_img = cv2.imread(CONTROLNET_IMG_PATH)
 controlnet_img = pose_processor(controlnet_img, hand_and_face=False, output_type='cv2')
 
 # need to resize the image resolution to 1024 * 1024 or same bucket resolution to get the best performance
