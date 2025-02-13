@@ -30,9 +30,8 @@ tokenizer = CLIPTokenizer.from_pretrained("stabilityai/stable-diffusion-xl-base-
 tokenizer_2 = CLIPTokenizer.from_pretrained("stabilityai/stable-diffusion-xl-base-1.0", subfolder="tokenizer_2", torch_dtype=torch.float16)
 base_unet = BaseUNet.from_pretrained("SG161222/RealVisXL_V4.0", subfolder="unet", torch_dtype=torch.float16)
 vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
-# refiner_unet = UNet2DConditionModel.from_pretrained("stabilityai/stable-diffusion-xl-refiner-1.0", subfolder="unet", torch_dtype=torch.float16, variant="fp16", use_safetensors=True)
-
 controlnet = ControlNetUnion.from_pretrained("xinsir/controlnet-union-sdxl-1.0", torch_dtype=torch.float16, use_safetensors=True)
+# refiner_unet = UNet2DConditionModel.from_pretrained("stabilityai/stable-diffusion-xl-refiner-1.0", subfolder="unet", torch_dtype=torch.float16, variant="fp16", use_safetensors=True)
 
 # Get pose from web
 # response = requests.get("https://avid-tapir-423.convex.cloud/api/storage/5834ca5a-324a-4425-97e2-acf8681a4e80")

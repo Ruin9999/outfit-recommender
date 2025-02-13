@@ -83,7 +83,6 @@ class StableDiffusionLitAPI(ls.LitAPI):
     if controlnet_image_url.startswith("http"):
       response = requests.get(controlnet_image_url)
       response.raise_for_status()
-      # TODO: getting issue where downloaded image has size 85 instead of 86
       image_array = np.frombuffer(response.content, dtype=np.uint8)
       controlnet_image = cv2.imdecode(image_array, cv2.IMREAD_COLOR) # Getting an error saying that this image has a size of 85 instead of 86, but where the fuck is throwing that error? I dont know
       if controlnet_image is None: raise ValueError("Invalid image")
