@@ -3,6 +3,8 @@ import torch.nn as nn
 from torch.nn import functional as F
 from typing import Optional
 
+from utils import default_init_weights
+
 class ResidualBlock(nn.Module):
   def __init__(
     self,
@@ -41,3 +43,52 @@ class ResidualBlock(nn.Module):
       residual = self.conv_shortcut(residual)
     
     return x + residual
+
+# x4 RRDBNet model
+class ResidualDenseBlock(nn.Module):
+  def __init__(
+    self,
+    in_channels: int = 64,
+    hidden_channels: int = 32,
+  ):
+    super().__init__()
+    self.conv1 = nn.Conv2d(in_channels, hidden_channels, kernel_size=3, padding=1)
+    self.conv2 = nn.Conv2d(in_channels + hidden_channels, hidden_channels, kernel_size=3, padding=1)
+    self.conv3 = nn.Conv2d(in_channels + (2 * hidden_channels), hidden_channels, kernel_size=3, padding=1)
+    self.conv4 = nn.Conv2d(in_channels + (3 * hidden_channels), hidden_channels, kernel_size=3, padding=1)
+    self.conv5 = nn.Conv2d(in_channels + (4 * hidden_channels), in_channels, kernel_size=3, padding=1)
+    self.lrelu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
+
+    default_init_weights([self.conv1, self.conv2, self.conv3, self.conv4, self.conv5])
+
+  def forward(self, x: torch.Tensor) -> torch.Tensor:
+    x1 = self.conv1(x)
+    x1 = self.lrelu(x1)
+    x2 = self.conv2(torch.cat([x, x1], dim=1))
+    x2 = self.lrelu(x2)
+    x3 = self.conv3(torch.cat([x, x1, x2], dim=1))
+    x3 = self.lrelu(x3)
+    x4 = self.conv4(torch.cat([x, x1, x2, x3], dim=1))
+    x4 = self.lrelu(x4)
+    x5 = self.conv5(torch.cat([x, x1, x2, x3, x4], dim=1))
+    
+    return x5 * 0.2 + x
+
+class ResidualResidualDenseBlock(nn.Module):
+  def __init__(
+    self,
+    in_channels: int = 64,
+    hidden_channels: int = 32,
+  ):
+    super().__init__()
+    self.rdb1 = ResidualDenseBlock(in_channels, hidden_channels)
+    self.rdb2 = ResidualDenseBlock(in_channels, hidden_channels)
+    self.rdb3 = ResidualDenseBlock(in_channels, hidden_channels)
+  
+  def forward(self, x: torch.Tensor) -> torch.Tensor:
+    residual = x
+    x = self.rdb1(x)
+    x = self.rdb2(x)
+    x = self.rdb3(x)
+
+    return x * 0.2 + residual

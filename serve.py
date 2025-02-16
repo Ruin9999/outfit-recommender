@@ -37,7 +37,7 @@ import PIL.Image as Image
 from controlnet_aux import OpenposeDetector
 from models import ControlNetUnion, BaseUNet, AutoencoderKL
 from transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPTokenizer
-from stable_diffusion_controlnet_pipeline import StableDiffusionXLControlNetUnionPipeline
+from pipelines import StableDiffusionXLControlNetUnionPipeline
 from diffusers.schedulers.scheduling_euler_ancestral_discrete import EulerAncestralDiscreteScheduler
 
 # DEFAULT VALUES
