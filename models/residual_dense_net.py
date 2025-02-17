@@ -87,3 +87,17 @@ class RRDBNet(nn.Module):
     model.load_state_dict(new_state_dict)
     model.eval()
     return model
+    
+  def to(self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None, **kwargs) -> nn.Module:
+    new_model = super().to(device=device, dtype=dtype, **kwargs)
+    if dtype is not None: self._dtype = dtype
+
+    return new_model
+
+  @property
+  def dtype(self) -> torch.dtype:
+    return self._dtype if hasattr(self, "_dtype") else next(self.parameters()).dtype
+
+  @dtype.setter
+  def dtype(self, dtype: torch.dtype) -> None:
+    self.to(dtype=dtype)

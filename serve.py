@@ -1,29 +1,3 @@
-# import io
-# import litserve as ls
-# import PIL.Image as Image
-# class StableDiffusionLitAPI(ls.LitAPI):
-#     def setup(self, device):
-#         self.model1 = lambda x: x**2
-#         self.model2 = lambda x: x**3
-
-#     def decode_request(self, request):
-#       return request["input"]
-
-#     def predict(self, x):
-#         return x.get("debug")
-
-#     def encode_response(self, output):
-#       result_image = Image.new("RGB", (512, 512), color="blue")
-#       buffer = io.BytesIO()
-#       result_image.save(buffer, format="PNG")
-#       buffer.seek(0)
-#       return 
-    
-# if __name__ == "__main__":
-#     api = StableDiffusionLitAPI()
-#     server = ls.LitServer(api, accelerator="auto")
-#     server.run(port=8000)
-
 import io
 import cv2
 import torch
@@ -35,14 +9,14 @@ import litserve as ls
 import PIL.Image as Image
 
 from controlnet_aux import OpenposeDetector
-from models import ControlNetUnion, BaseUNet, AutoencoderKL
+from models import ControlNetUnion, BaseUNet, AutoencoderKL, RRDBNet
 from transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPTokenizer
-from pipelines import StableDiffusionXLControlNetUnionPipeline
+from pipelines import StableDiffusionXLControlNetUnionPipeline, ESRGANPipeline
 from diffusers.schedulers.scheduling_euler_ancestral_discrete import EulerAncestralDiscreteScheduler
 
 # DEFAULT VALUES
 PROMPT="Model in layered street style, standing against a vibrant graffiti wall, Vivid colors, Mirrorless, 28mm lens"
-NEG_PROMPT="out of frame, lowres, text, error, cropped, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, out of frame, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck"
+NEG_PROMPT="face asymmetry, eyes asymmetry, deformed eyes, open mouth"
 CONTROLNET_IMG_PATH="controlnet_default.jpg"
 
 class StableDiffusionLitAPI(ls.LitAPI):
@@ -55,7 +29,9 @@ class StableDiffusionLitAPI(ls.LitAPI):
     self.base_unet = BaseUNet.from_pretrained("SG161222/RealVisXL_V4.0", subfolder="unet", torch_dtype=torch.float16)
     self.vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
     self.controlnet = ControlNetUnion.from_pretrained("xinsir/controlnet-union-sdxl-1.0", torch_dtype=torch.float16, use_safetensors=True)
-    self.pose_processor = OpenposeDetector.from_pretrained('lllyasviel/ControlNet')
+    self.pose_processor = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
+    self.rrdbnet = RRDBNet.from_pretrained("safetensors/realesrgan_x4plus.safetensors")
+    self.upscaler_pipeline = ESRGANPipeline(rrdbnet=self.rrdbnet).to(device=torch.device("cuda"))
     self.pipeline = StableDiffusionXLControlNetUnionPipeline(
       vae=self.vae, #type: ignore
       text_encoder=self.text_encoder,
@@ -65,7 +41,7 @@ class StableDiffusionLitAPI(ls.LitAPI):
       unet=self.base_unet, #type: ignore
       controlnet=self.controlnet, #type: ignore
       scheduler=self.scheduler,
-    ).to(device) # Moving to CPU should cause some issues with fp16.
+    ).to(device=device) # Moving to CPU should cause some issues with fp16.
 
   def decode_request(self, request):# -> Any:# -> Any:
     return request["input"]
@@ -112,11 +88,12 @@ class StableDiffusionLitAPI(ls.LitAPI):
       guidance_scale=guidance_scale
     ).images[0]
 
-    # TODO: If log, store image
+    print("Upsampling....")
+    upscaled_image = self.upscaler_pipeline(image=image, outscale=4)
 
     # Send image back to client
     buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
+    upscaled_image.save(buffer, format="PNG")
     buffer.seek(0)
     image_bytes = buffer.read()
     encoded_string = base64.b64encode(image_bytes).decode("utf-8")

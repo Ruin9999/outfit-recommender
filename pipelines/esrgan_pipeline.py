@@ -84,6 +84,9 @@ class ESRGANPipeline(DiffusionPipeline): # Inheriting for some basic functions, 
     device: Optional[torch.device] = None,
     dtype: Optional[torch.dtype] = None,
   ):
+    device = device if device is not None else next(self.rrdbnet.parameters()).device
+    dtype = dtype if dtype is not None else next(self.rrdbnet.parameters()).dtype
+
     image_array = np.array(image).astype(np.float32)
     input_height, input_width = image_array.shape[:2]
     image_array = image_array / 255.0
@@ -116,5 +119,6 @@ class ESRGANPipeline(DiffusionPipeline): # Inheriting for some basic functions, 
       )
 
     image_array = cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
+    pil_image = Image.fromarray(image_array)
 
-    return image_array
+    return pil_image
