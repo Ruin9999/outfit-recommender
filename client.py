@@ -1,21 +1,21 @@
-
-# Copyright The Lightning AI team.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 import requests
+import base64
+from PIL import Image
+from io import BytesIO
+from utils import save_images, get_timestamp
+
+VERSION = 4
 
 response = requests.post("http://127.0.0.0:8000/predict", json={"input": {
     "prompt" : "A man getting ready for an interview, he is wearing a suit and tie.",
     "controlnet_image_url": "https://avid-tapir-423.convex.cloud/api/storage/c765650a-0117-42c1-9d7d-ceac5fcd5a71"
 }})
-print(f"Status: {response.status_code}\nResponse:\n {response.text}")
+
+response = response.json()
+image = response.get("image")
+
+image_bytes = base64.b64decode(image)
+image = Image.open(BytesIO(image_bytes))
+
+timestamp = get_timestamp()
+save_images([image], output_dir=f"outputs/version_{VERSION}", filename=timestamp)

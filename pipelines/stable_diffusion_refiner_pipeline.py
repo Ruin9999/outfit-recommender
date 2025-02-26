@@ -118,7 +118,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class StableDiffusionXLImg2ImgPipeline(
+class StableDiffusionRefinerPipeline(
     DiffusionPipeline,
 ):
     r"""

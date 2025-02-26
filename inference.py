@@ -1,5 +1,6 @@
 import cv2
 import torch
+import openai
 import numpy as np
 import PIL.Image as Image
 from controlnet_aux import OpenposeDetector
@@ -73,6 +74,8 @@ base_pipeline.to(IDLE_DEVICE)
 print("Upsampling...")
 upsampler_pipeline = ESRGANPipeline(rrdbnet=rrdbnet).to(device=ACTIVE_DEVICE)
 image = upsampler_pipeline(image, outscale=4)
+
+print("Refining image...")
 
 
 save_images([image])

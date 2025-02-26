@@ -17,6 +17,8 @@ from diffusers.models.attention_processor import AttnProcessor2_0, LoRAAttnProce
 from models import ControlNetUnion, BaseUNet
 
 class StableDiffusionXLControlNetUnionPipeline(DiffusionPipeline):
+  model_cpu_offload_seq = "text_encoder->text_encoder_2->image_encoder->unet->vae"
+  
   def __init__(
     self,
     vae: AutoencoderKL,

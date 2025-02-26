@@ -9,9 +9,9 @@ import litserve as ls
 import PIL.Image as Image
 
 from controlnet_aux import OpenposeDetector
-from models import ControlNetUnion, BaseUNet, AutoencoderKL, RRDBNet
+from models import ControlNetUnion, BaseUNet, AutoencoderKL, RRDBNet, RefinerUNet
 from transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPTokenizer
-from pipelines import StableDiffusionXLControlNetUnionPipeline, ESRGANPipeline
+from pipelines import StableDiffusionXLControlNetUnionPipeline, ESRGANPipeline, StableDiffusionRefinerPipeline
 from diffusers.schedulers.scheduling_euler_ancestral_discrete import EulerAncestralDiscreteScheduler
 
 # DEFAULT VALUES
@@ -27,12 +27,24 @@ class StableDiffusionLitAPI(ls.LitAPI):
     self.tokenizer = CLIPTokenizer.from_pretrained("stabilityai/stable-diffusion-xl-base-1.0", subfolder="tokenizer", torch_dtype=torch.float16)
     self.tokenizer_2 = CLIPTokenizer.from_pretrained("stabilityai/stable-diffusion-xl-base-1.0", subfolder="tokenizer_2", torch_dtype=torch.float16)
     self.base_unet = BaseUNet.from_pretrained("SG161222/RealVisXL_V4.0", subfolder="unet", torch_dtype=torch.float16)
+    self.refiner_unet = RefinerUNet.from_pretrained("stabilityai/stable-diffusion-xl-refiner-1.0", subfolder="unet", torch_dtype=torch.float16)
     self.vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
     self.controlnet = ControlNetUnion.from_pretrained("xinsir/controlnet-union-sdxl-1.0", torch_dtype=torch.float16, use_safetensors=True)
     self.pose_processor = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
     self.rrdbnet = RRDBNet.from_pretrained("safetensors/realesrgan_x4plus.safetensors")
-    self.upscaler_pipeline = ESRGANPipeline(rrdbnet=self.rrdbnet).to(device=torch.device("cuda"))
-    self.pipeline = StableDiffusionXLControlNetUnionPipeline(
+    self.upscaler_pipeline = ESRGANPipeline(rrdbnet=self.rrdbnet).to(device="cpu")
+    self.refiner_pipeline = StableDiffusionRefinerPipeline(
+      vae=self.vae, #type: ignore
+      text_encoder=self.text_encoder,
+      text_encoder_2=self.text_encoder_2,
+      tokenizer=self.tokenizer,
+      tokenizer_2=self.tokenizer_2,
+      unet=self.refiner_unet, #type: ignore
+      scheduler=self.scheduler,
+    ).to(device="cpu")
+    self.refiner_pipeline.enable_model_cpu_offload()
+
+    self.base_pipeline = StableDiffusionXLControlNetUnionPipeline(
       vae=self.vae, #type: ignore
       text_encoder=self.text_encoder,
       text_encoder_2=self.text_encoder_2,
@@ -41,11 +53,13 @@ class StableDiffusionLitAPI(ls.LitAPI):
       unet=self.base_unet, #type: ignore
       controlnet=self.controlnet, #type: ignore
       scheduler=self.scheduler,
-    ).to(device=device) # Moving to CPU should cause some issues with fp16.
+    ).to(device="cpu")
+    self.base_pipeline.enable_model_cpu_offload()
 
   def decode_request(self, request):# -> Any:# -> Any:
     return request["input"]
   
+  @torch.no_grad()
   def predict(self, arguments):
     prompt = arguments.get("prompt", PROMPT)
     neg_prompt = arguments.get("neg_prompt", NEG_PROMPT)
@@ -53,7 +67,6 @@ class StableDiffusionLitAPI(ls.LitAPI):
     guidance_scale = arguments.get("guidance_scale", 8.0)
     controlnet_image_url = arguments.get("controlnet_image_url", CONTROLNET_IMG_PATH)
     seed = arguments.get("seed", random.randint(0, 2147483647))
-    log = arguments.get("log", False)
 
     # Download controlnet image
     if controlnet_image_url.startswith("http"):
@@ -73,10 +86,9 @@ class StableDiffusionLitAPI(ls.LitAPI):
     controlnet_image = cv2.resize(controlnet_image, (new_width, new_height)) #type: ignore
     controlnet_image = Image.fromarray(controlnet_image)
 
-    # TODO: If log, store controlnet_image
-
     # Run inference
-    image = self.pipeline(
+    self.base_pipeline.to("cuda")
+    image = self.base_pipeline(
       prompt=prompt,
       neg_prompt=neg_prompt,
       image_list=[controlnet_image, 0, 0, 0, 0, 0],
@@ -87,9 +99,25 @@ class StableDiffusionLitAPI(ls.LitAPI):
       union_control_type=torch.Tensor([1, 0, 0, 0, 0, 0]),
       guidance_scale=guidance_scale
     ).images[0]
+    self.base_pipeline.to("cpu")
+    torch.cuda.empty_cache()
 
     print("Upsampling....")
+    self.upscaler_pipeline.to(device="cuda")
     upscaled_image = self.upscaler_pipeline(image=image, outscale=4)
+    self.upscaler_pipeline.to(device="cpu")
+    torch.cuda.empty_cache()
+
+    self.refiner_pipeline.to(device="cuda")
+    image = self.refiner_pipeline(
+      image=upscaled_image,
+      prompt=prompt,
+      num_inference_steps=num_inference_steps,
+      guidance_scale=guidance_scale,
+      generator=torch.Generator("cuda:0").manual_seed(seed),
+    ).images[0]
+    self.refiner_pipeline.to(device="cpu")
+    torch.cuda.empty_cache()
 
     # Send image back to client
     buffer = io.BytesIO()
@@ -101,7 +129,7 @@ class StableDiffusionLitAPI(ls.LitAPI):
     return encoded_string
 
   def encode_response(self, output):
-    return {"output": output}
+    return {"image": output}
   
 if __name__ == "__main__":
   api = StableDiffusionLitAPI()
