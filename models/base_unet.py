@@ -178,22 +178,32 @@ class BaseUNet(ModelMixin, FromOriginalModelMixin, ConfigMixin):
     if mid_block_additional_residual is not None:
       x = x + mid_block_additional_residual
 
-    
     # 5. Up blocks
-    for up_block in self.up_blocks:
+    for index, up_block in enumerate(self.up_blocks):
       res_samples = downsample_res_samples[-len(up_block.resnets) :]
       downsample_res_samples = downsample_res_samples[: -len(up_block.resnets)]
+
+      forward_upsample_size = False
+      for dimension in x.shape[-2:]:
+        if dimension % (2 ** 2) != 0:
+          forward_upsample_size = True
+          break
+
+      if forward_upsample_size and index != len(self.up_blocks) - 1:
+        upsample_size = downsample_res_samples[-1].shape[2:]
+      else:
+        upsample_size = None
 
       if hasattr(up_block, "has_cross_attention") and up_block.has_cross_attention:
         x = up_block(
           x,
           timestep_embedding,
           res_samples,
+          upsample_size=upsample_size,
           encoder_hidden_states=encoder_hidden_states,
         )
       else:
-        x = up_block(x, timestep_embedding, res_samples)
-
+        x = up_block(x, timestep_embedding, res_samples, upsample_size=upsample_size)
       
     # 6. Post processing
     x = self.conv_norm_out(x)

@@ -12,13 +12,18 @@ class Upsample(nn.Module):
     super().__init__()
     self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
 
-  def forward(self, x: torch.Tensor) -> torch.Tensor: 
+  def forward(self, x: torch.Tensor, output_size: Optional[Tuple[int, int]] = None) -> torch.Tensor: 
+
     dtype = x.dtype
     x = x.to(torch.float32)
     x = x.contiguous()
-    x = F.interpolate(x, scale_factor=2, mode='nearest')
-    x = x.to(dtype)
 
+    if output_size is None:
+      x = F.interpolate(x, scale_factor=2, mode="nearest")
+    else:
+      x = F.interpolate(x, size=output_size, mode="nearest")
+
+    x = x.to(dtype)
     x = self.conv(x)
 
     return x
@@ -56,6 +61,7 @@ class UpsampleBlock(nn.Module):
     x: torch.Tensor,
     time_embedding: Optional[torch.Tensor] = None,
     res_hidden_states_tuple: Optional[Tuple[torch.Tensor, ...]] = None,
+    upsample_size: Optional[Tuple[int, int]] = None,
   ):
     if res_hidden_states_tuple is not None:
       assert self.prev_channels is not None, "Nah fam, you need to provide `prev_channels` in the constructor if you want to provide `res_hidden_states_tuple`"
@@ -68,7 +74,7 @@ class UpsampleBlock(nn.Module):
       x = layer(x, time_embedding)
 
     for upsample in self.upsamplers:
-      x = upsample(x)
+      x = upsample(x, upsample_size)
 
     return x
 
@@ -120,6 +126,7 @@ class UpsampleCrossAttentionBlock(nn.Module):
     res_hidden_states_tuple: Optional[Tuple[torch.Tensor, ...]] = None,
     encoder_hidden_states: Optional[torch.Tensor] = None,
     cross_attention_kwargs: Optional[Dict[str, Any]] = None,
+    upsample_size: Optional[Tuple[int, int]] = None,
   ) -> torch.Tensor:
     for resnet, attention in zip(self.resnets, self.attentions):
       res_hidden_states = res_hidden_states_tuple[-1] #type: ignore
@@ -129,7 +136,7 @@ class UpsampleCrossAttentionBlock(nn.Module):
       x = resnet(x, time_embedding)
       x = attention(x, encoder_hidden_states=encoder_hidden_states, cross_attention_kwargs=cross_attention_kwargs)[0]
 
-    for layer in self.upsamplers:
-      x = layer(x)
+    for upsample in self.upsamplers:
+      x = upsample(x, upsample_size)
 
     return x
