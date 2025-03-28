@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from typing import Dict, Optional, Union, Tuple
+from typing import Dict, Optional, Union, Tuple, Any
 
 from utils import UNetOutput
 from diffusers.models.modeling_utils import ModelMixin
@@ -119,6 +119,8 @@ class RefinerUNet(ModelMixin, FromOriginalModelMixin, ConfigMixin):
     x: torch.Tensor,
     timestep: torch.Tensor,
     added_cond_kwargs: Dict[str, torch.Tensor],
+    timestep_cond: Optional[Any] = None,
+    cross_attention_kwargs: Optional[Any] = None,
     encoder_hidden_states: Optional[torch.Tensor] = None,
     return_dict: bool =True,
   ) -> Union[UNetOutput, Tuple[torch.Tensor]]:

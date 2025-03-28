@@ -80,10 +80,11 @@ class ESRGANPipeline(DiffusionPipeline): # Inheriting for some basic functions, 
   def __call__(
     self,
     image: Image.Image,
-    outscale: Optional[int] = None,
+    outscale: int = 2,
     device: Optional[torch.device] = None,
     dtype: Optional[torch.dtype] = None,
   ):
+    outscale = outscale * 2
     device = device if device is not None else next(self.rrdbnet.parameters()).device
     dtype = dtype if dtype is not None else next(self.rrdbnet.parameters()).dtype
 
@@ -108,9 +109,11 @@ class ESRGANPipeline(DiffusionPipeline): # Inheriting for some basic functions, 
       image_array = image_array[:, :, 0:int(padded_height - self.pre_padding * self.scale), 0:int(padded_width - self.pre_padding * self.scale)]
 
     image_array = image_array.data.squeeze().float().cpu().clamp_(0, 1).numpy()
-    image_array = np.transpose(image_array[[2, 1, 0], :, :], (1, 2, 0))
+    # image_array = np.transpose(image_array[[2, 1, 0], :, :], (1, 2, 0)) # BGR - > RGB
+    image_array = np.transpose(image_array, (1, 2, 0))
     image_array = (image_array * 255.0).round().astype(np.uint8)
 
+    print("Upscaling image...")
     if outscale is not None and outscale != float(self.scale):
       image_array = cv2.resize(
         image_array,
@@ -118,7 +121,4 @@ class ESRGANPipeline(DiffusionPipeline): # Inheriting for some basic functions, 
         interpolation=cv2.INTER_LANCZOS4,
       )
 
-    image_array = cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
-    pil_image = Image.fromarray(image_array)
-
-    return pil_image
+    return image_array
